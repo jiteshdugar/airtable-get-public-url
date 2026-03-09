@@ -39,7 +39,7 @@ export default function UploadTab({apiKey}) {
 
     const tables = base?.tables ?? [];
     const table = selectedTableId ? base?.getTableByIdIfExists(selectedTableId) : null;
-    const records = useRecords(table);
+    const records = useRecords(table ?? undefined);
 
     // Get URL/text fields for destination
     const targetFields = table
