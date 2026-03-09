@@ -1,48 +1,118 @@
-import {initializeBlock} from '@airtable/blocks/interface/ui';
+import {useState} from 'react';
+import {initializeBlock, useCustomProperties} from '@airtable/blocks/interface/ui';
+import {
+    CloudArrowUpIcon,
+    StackIcon,
+    GearIcon,
+} from '@phosphor-icons/react';
 import './style.css';
+import UploadTab from './components/UploadTab';
+import BulkUploadTab from './components/BulkUploadTab';
+import {SettingsPanel, ApiKeySetupPrompt} from './components/Settings';
 
-function HelloWorldApp() {
-    // YOUR CODE GOES HERE
-    return (
-        <div className="p-4 sm:p-8 min-h-screen relative bg-gray-gray50 dark:bg-gray-gray800">
-            <div
-                className="rounded-lg p-6 sm:p-12 max-w-lg mx-auto text-center mt-10 sm:mt-20
-            bg-white shadow-xl
-            dark:bg-gray-gray700 dark:shadow-none"
-            >
-                <h1
-                    className="text-4xl sm:text-5xl md:text-5xl lg:text-6xl font-display font-bold mb-2 leading-tight
-                text-gray-gray700
-                dark:text-gray-gray200"
-                >
-                    Hello world 🚀
-                </h1>
-                <div className="flex justify-center space-x-2 mt-6">
-                    <div className="w-3 h-3 bg-red-red rounded-full animate-pulse" />
-                    <div
-                        className="w-3 h-3 bg-orange-orange rounded-full animate-pulse"
-                        style={{animationDelay: '0.2s'}}
-                    />
-                    <div
-                        className="w-3 h-3 bg-yellow-yellow rounded-full animate-pulse"
-                        style={{animationDelay: '0.4s'}}
-                    />
-                    <div
-                        className="w-3 h-3 bg-green-green rounded-full animate-pulse"
-                        style={{animationDelay: '0.6s'}}
-                    />
-                    <div
-                        className="w-3 h-3 bg-blue-blue rounded-full animate-pulse"
-                        style={{animationDelay: '0.8s'}}
-                    />
-                    <div
-                        className="w-3 h-3 bg-purple-purple rounded-full animate-pulse"
-                        style={{animationDelay: '1s'}}
-                    />
+function getCustomProperties(base) {
+    return [
+        {
+            key: 'apiKey',
+            label: 'UploadToURL API Key',
+            type: 'string',
+            defaultValue: '',
+        },
+        {
+            key: 'table',
+            label: 'Table',
+            type: 'table',
+            defaultValue: base.tables[0],
+        },
+    ];
+}
+
+const TABS = [
+    {id: 'upload', label: 'Upload & Attach', icon: CloudArrowUpIcon},
+    {id: 'bulk', label: 'Bulk Upload', icon: StackIcon},
+];
+
+function UploadToUrlApp() {
+    const {customPropertyValueByKey, errorState} = useCustomProperties(getCustomProperties);
+    const [activeTab, setActiveTab] = useState('upload');
+    const [showSettings, setShowSettings] = useState(false);
+
+    const apiKey = customPropertyValueByKey?.apiKey || '';
+    const table = customPropertyValueByKey?.table;
+
+    if (errorState) {
+        return (
+            <div className="min-h-screen flex items-center justify-center p-4 bg-gray-gray50 dark:bg-gray-gray800">
+                <div className="text-center max-w-sm">
+                    <p className="text-sm text-red-red">
+                        Error loading extension: {errorState.message || 'Unknown error'}
+                    </p>
                 </div>
             </div>
+        );
+    }
+
+    // Show setup prompt if no API key
+    if (!apiKey) {
+        return (
+            <div className="min-h-screen bg-gray-gray50 dark:bg-gray-gray800">
+                <ApiKeySetupPrompt />
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-gray-gray50 dark:bg-gray-gray800">
+            <div className="max-w-xl mx-auto px-4 py-4">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4">
+                    <h1 className="text-lg font-semibold text-gray-gray700 dark:text-gray-gray200">
+                        Upload to URL
+                    </h1>
+                    <button
+                        onClick={() => setShowSettings(true)}
+                        className="p-1.5 text-gray-gray400 hover:text-gray-gray600 dark:hover:text-gray-gray200 hover:bg-gray-gray100 dark:hover:bg-gray-gray700 rounded-md transition-colors"
+                        title="Settings"
+                    >
+                        <GearIcon size={18} />
+                    </button>
+                </div>
+
+                {/* Tab Bar */}
+                <div className="flex border-b border-gray-gray100 dark:border-gray-gray600 mb-4">
+                    {TABS.map((tab) => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+                                    isActive
+                                        ? 'border-blue-blue text-blue-blue'
+                                        : 'border-transparent text-gray-gray400 hover:text-gray-gray600 dark:hover:text-gray-gray300'
+                                }`}
+                            >
+                                <Icon size={15} weight={isActive ? 'fill' : 'regular'} />
+                                {tab.label}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* Tab Content */}
+                <div className="pb-6">
+                    {activeTab === 'upload' && <UploadTab apiKey={apiKey} table={table} />}
+                    {activeTab === 'bulk' && <BulkUploadTab apiKey={apiKey} table={table} />}
+                </div>
+            </div>
+
+            {/* Settings Modal */}
+            {showSettings && (
+                <SettingsPanel apiKey={apiKey} onClose={() => setShowSettings(false)} />
+            )}
         </div>
     );
 }
 
-initializeBlock({interface: () => <HelloWorldApp />});
+initializeBlock({interface: () => <UploadToUrlApp />});
