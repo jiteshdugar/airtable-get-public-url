@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {initializeBlock, useCustomProperties, useGlobalConfig} from '@airtable/blocks/interface/ui';
+import {initializeBlock, useGlobalConfig} from '@airtable/blocks/interface/ui';
 import {
     CloudArrowUpIcon,
     StackIcon,
@@ -10,42 +10,17 @@ import UploadTab from './components/UploadTab';
 import BulkUploadTab from './components/BulkUploadTab';
 import {SettingsPanel, ApiKeySetupPrompt} from './components/Settings';
 
-function getCustomProperties(base) {
-    return [
-        {
-            key: 'table',
-            label: 'Table',
-            type: 'table',
-            defaultValue: base.tables[0],
-        },
-    ];
-}
-
 const TABS = [
     {id: 'upload', label: 'Upload & Attach', icon: CloudArrowUpIcon},
     {id: 'bulk', label: 'Bulk Upload', icon: StackIcon},
 ];
 
 function UploadToUrlApp() {
-    const {customPropertyValueByKey, errorState} = useCustomProperties(getCustomProperties);
     const globalConfig = useGlobalConfig();
     const [activeTab, setActiveTab] = useState('upload');
     const [showSettings, setShowSettings] = useState(false);
 
     const apiKey = (globalConfig.get('apiKey') || '');
-    const table = customPropertyValueByKey?.table;
-
-    if (errorState) {
-        return (
-            <div className="min-h-screen flex items-center justify-center p-4 bg-gray-gray50 dark:bg-gray-gray800">
-                <div className="text-center max-w-sm">
-                    <p className="text-sm text-red-red">
-                        Error loading extension: {errorState.message || 'Unknown error'}
-                    </p>
-                </div>
-            </div>
-        );
-    }
 
     // Show setup prompt if no API key
     if (!apiKey) {
@@ -97,8 +72,8 @@ function UploadToUrlApp() {
 
                 {/* Tab Content */}
                 <div className="pb-6">
-                    {activeTab === 'upload' && <UploadTab apiKey={apiKey} table={table} />}
-                    {activeTab === 'bulk' && <BulkUploadTab apiKey={apiKey} table={table} />}
+                    {activeTab === 'upload' && <UploadTab apiKey={apiKey} />}
+                    {activeTab === 'bulk' && <BulkUploadTab apiKey={apiKey} />}
                 </div>
             </div>
 

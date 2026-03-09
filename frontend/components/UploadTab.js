@@ -1,5 +1,5 @@
 import {useState, useRef, useCallback} from 'react';
-import {useRecords} from '@airtable/blocks/interface/ui';
+import {useBase, useRecords} from '@airtable/blocks/interface/ui';
 import {FieldType} from '@airtable/blocks/interface/models';
 import {
     CloudArrowUpIcon,
@@ -11,6 +11,7 @@ import {
     CalendarIcon,
     CaretDownIcon,
     CheckCircleIcon,
+    TableIcon,
 } from '@phosphor-icons/react';
 import {uploadFile} from '../api';
 
@@ -21,8 +22,9 @@ const EXPIRY_OPTIONS = [
     {value: '30', label: '30 days'},
 ];
 
-export default function UploadTab({apiKey, table}) {
-    const records = useRecords(table);
+export default function UploadTab({apiKey}) {
+    const base = useBase();
+    const [selectedTableId, setSelectedTableId] = useState('');
     const [selectedRecordId, setSelectedRecordId] = useState('');
     const [file, setFile] = useState(null);
     const [expiry, setExpiry] = useState('never');
@@ -34,6 +36,10 @@ export default function UploadTab({apiKey, table}) {
     const [written, setWritten] = useState(false);
     const [dragOver, setDragOver] = useState(false);
     const fileInputRef = useRef(null);
+
+    const tables = base?.tables ?? [];
+    const table = selectedTableId ? base?.getTableByIdIfExists(selectedTableId) : null;
+    const records = useRecords(table);
 
     // Get URL/text fields for destination
     const targetFields = table
@@ -151,8 +157,41 @@ export default function UploadTab({apiKey, table}) {
 
     return (
         <div className="space-y-4">
-            {/* Record Selector */}
+            {/* Table Selector */}
             <div>
+                <label className="block text-sm font-medium text-gray-gray600 dark:text-gray-gray300 mb-1.5">
+                    <div className="flex items-center gap-1.5">
+                        <TableIcon size={13} />
+                        Table
+                    </div>
+                </label>
+                <div className="relative">
+                    <select
+                        value={selectedTableId}
+                        onChange={(e) => {
+                            setSelectedTableId(e.target.value);
+                            setSelectedRecordId('');
+                            setSelectedFieldId('');
+                            setWritten(false);
+                        }}
+                        className="w-full appearance-none px-3 py-2 pr-8 bg-white dark:bg-gray-gray800 border border-gray-gray200 dark:border-gray-gray600 rounded-md text-sm text-gray-gray700 dark:text-gray-gray200 focus:outline-none focus:ring-2 focus:ring-blue-blue/30 focus:border-blue-blue"
+                    >
+                        <option value="">Choose a table...</option>
+                        {tables.map((t) => (
+                            <option key={t.id} value={t.id}>
+                                {t.name}
+                            </option>
+                        ))}
+                    </select>
+                    <CaretDownIcon
+                        size={14}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-gray400 pointer-events-none"
+                    />
+                </div>
+            </div>
+
+            {/* Record Selector */}
+            {table && <div>
                 <label className="block text-sm font-medium text-gray-gray600 dark:text-gray-gray300 mb-1.5">
                     Select Record
                 </label>
@@ -178,7 +217,7 @@ export default function UploadTab({apiKey, table}) {
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-gray400 pointer-events-none"
                     />
                 </div>
-            </div>
+            </div>}
 
             {/* File Drop Zone */}
             <div>
@@ -279,35 +318,37 @@ export default function UploadTab({apiKey, table}) {
             </div>
 
             {/* Destination Field */}
-            <div>
-                <label className="block text-sm font-medium text-gray-gray600 dark:text-gray-gray300 mb-1.5">
-                    Destination Field
-                    <span className="text-xs font-normal text-gray-gray400 ml-1">(optional)</span>
-                </label>
-                <div className="relative">
-                    <select
-                        value={selectedFieldId}
-                        onChange={(e) => setSelectedFieldId(e.target.value)}
-                        className="w-full appearance-none px-3 py-2 pr-8 bg-white dark:bg-gray-gray800 border border-gray-gray200 dark:border-gray-gray600 rounded-md text-sm text-gray-gray700 dark:text-gray-gray200 focus:outline-none focus:ring-2 focus:ring-blue-blue/30 focus:border-blue-blue"
-                    >
-                        <option value="">Select a URL / text field...</option>
-                        {targetFields.map((f) => (
-                            <option key={f.id} value={f.id}>
-                                {f.name}
-                            </option>
-                        ))}
-                    </select>
-                    <CaretDownIcon
-                        size={14}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-gray400 pointer-events-none"
-                    />
+            {table && (
+                <div>
+                    <label className="block text-sm font-medium text-gray-gray600 dark:text-gray-gray300 mb-1.5">
+                        Destination Field
+                        <span className="text-xs font-normal text-gray-gray400 ml-1">(optional)</span>
+                    </label>
+                    <div className="relative">
+                        <select
+                            value={selectedFieldId}
+                            onChange={(e) => setSelectedFieldId(e.target.value)}
+                            className="w-full appearance-none px-3 py-2 pr-8 bg-white dark:bg-gray-gray800 border border-gray-gray200 dark:border-gray-gray600 rounded-md text-sm text-gray-gray700 dark:text-gray-gray200 focus:outline-none focus:ring-2 focus:ring-blue-blue/30 focus:border-blue-blue"
+                        >
+                            <option value="">Select a URL / text field...</option>
+                            {targetFields.map((f) => (
+                                <option key={f.id} value={f.id}>
+                                    {f.name}
+                                </option>
+                            ))}
+                        </select>
+                        <CaretDownIcon
+                            size={14}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-gray400 pointer-events-none"
+                        />
+                    </div>
+                    {targetFields.length === 0 && (
+                        <p className="text-xs text-yellow-yellowDark1 dark:text-yellow-yellow mt-1">
+                            No URL or text fields found in this table.
+                        </p>
+                    )}
                 </div>
-                {targetFields.length === 0 && (
-                    <p className="text-xs text-yellow-yellowDark1 dark:text-yellow-yellow mt-1">
-                        No URL or text fields found in this table.
-                    </p>
-                )}
-            </div>
+            )}
 
             {/* Upload Button */}
             <button

@@ -21,9 +21,9 @@ const EXPIRY_OPTIONS = [
     {value: '30', label: '30 days'},
 ];
 
-export default function BulkUploadTab({apiKey, table: defaultTable}) {
+export default function BulkUploadTab({apiKey}) {
     const base = useBase();
-    const [selectedTableId, setSelectedTableId] = useState(defaultTable?.id || '');
+    const [selectedTableId, setSelectedTableId] = useState('');
     const [selectedViewId, setSelectedViewId] = useState('');
     const [sourceFieldId, setSourceFieldId] = useState('');
     const [destFieldId, setDestFieldId] = useState('');
