@@ -6,8 +6,6 @@ import {
     FileIcon,
     CopyIcon,
     CheckIcon,
-    LinkIcon,
-    PaperclipIcon,
     TrashIcon,
     SpinnerIcon,
     CalendarIcon,
@@ -28,7 +26,6 @@ export default function UploadTab({apiKey, table}) {
     const [selectedRecordId, setSelectedRecordId] = useState('');
     const [file, setFile] = useState(null);
     const [expiry, setExpiry] = useState('never');
-    const [writeMode, setWriteMode] = useState('url'); // 'url' or 'attachment'
     const [selectedFieldId, setSelectedFieldId] = useState('');
     const [uploading, setUploading] = useState(false);
     const [result, setResult] = useState(null);
@@ -38,8 +35,8 @@ export default function UploadTab({apiKey, table}) {
     const [dragOver, setDragOver] = useState(false);
     const fileInputRef = useRef(null);
 
-    // Get fields filtered by write mode
-    const urlFields = table
+    // Get URL/text fields for destination
+    const targetFields = table
         ? table.fields.filter(
               (f) =>
                   f.type === FieldType.URL ||
@@ -47,10 +44,6 @@ export default function UploadTab({apiKey, table}) {
                   f.type === FieldType.MULTILINE_TEXT,
           )
         : [];
-    const attachmentFields = table
-        ? table.fields.filter((f) => f.type === FieldType.MULTIPLE_ATTACHMENTS)
-        : [];
-    const targetFields = writeMode === 'url' ? urlFields : attachmentFields;
 
     const handleDragOver = useCallback((e) => {
         e.preventDefault();
@@ -112,12 +105,7 @@ export default function UploadTab({apiKey, table}) {
         if (!field) return;
 
         try {
-            let value;
-            if (writeMode === 'attachment') {
-                value = [{url}];
-            } else {
-                value = url;
-            }
+            const value = url;
 
             const hasPermission = table.hasPermissionToUpdateRecords([
                 {id: selectedRecordId, fields: {[field.id]: value}},
@@ -263,70 +251,30 @@ export default function UploadTab({apiKey, table}) {
                 </div>
             </div>
 
-            {/* Expiry & Write Mode Row */}
-            <div className="grid grid-cols-2 gap-3">
-                {/* Expiry Picker */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-gray600 dark:text-gray-gray300 mb-1.5">
-                        <div className="flex items-center gap-1.5">
-                            <CalendarIcon size={13} />
-                            Link Expiry
-                        </div>
-                    </label>
-                    <div className="relative">
-                        <select
-                            value={expiry}
-                            onChange={(e) => setExpiry(e.target.value)}
-                            className="w-full appearance-none px-3 py-2 pr-8 bg-white dark:bg-gray-gray800 border border-gray-gray200 dark:border-gray-gray600 rounded-md text-sm text-gray-gray700 dark:text-gray-gray200 focus:outline-none focus:ring-2 focus:ring-blue-blue/30 focus:border-blue-blue"
-                        >
-                            {EXPIRY_OPTIONS.map((opt) => (
-                                <option key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                </option>
-                            ))}
-                        </select>
-                        <CaretDownIcon
-                            size={14}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-gray400 pointer-events-none"
-                        />
+            {/* Expiry Picker */}
+            <div>
+                <label className="block text-sm font-medium text-gray-gray600 dark:text-gray-gray300 mb-1.5">
+                    <div className="flex items-center gap-1.5">
+                        <CalendarIcon size={13} />
+                        Link Expiry
                     </div>
-                </div>
-
-                {/* Write Mode Toggle */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-gray600 dark:text-gray-gray300 mb-1.5">
-                        Save as
-                    </label>
-                    <div className="flex rounded-md border border-gray-gray200 dark:border-gray-gray600 overflow-hidden">
-                        <button
-                            onClick={() => {
-                                setWriteMode('url');
-                                setSelectedFieldId('');
-                            }}
-                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
-                                writeMode === 'url'
-                                    ? 'bg-blue-blue text-white'
-                                    : 'bg-white dark:bg-gray-gray800 text-gray-gray500 dark:text-gray-gray400 hover:bg-gray-gray50 dark:hover:bg-gray-gray700'
-                            }`}
-                        >
-                            <LinkIcon size={14} />
-                            URL
-                        </button>
-                        <button
-                            onClick={() => {
-                                setWriteMode('attachment');
-                                setSelectedFieldId('');
-                            }}
-                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
-                                writeMode === 'attachment'
-                                    ? 'bg-blue-blue text-white'
-                                    : 'bg-white dark:bg-gray-gray800 text-gray-gray500 dark:text-gray-gray400 hover:bg-gray-gray50 dark:hover:bg-gray-gray700'
-                            }`}
-                        >
-                            <PaperclipIcon size={14} />
-                            Attachment
-                        </button>
-                    </div>
+                </label>
+                <div className="relative">
+                    <select
+                        value={expiry}
+                        onChange={(e) => setExpiry(e.target.value)}
+                        className="w-full appearance-none px-3 py-2 pr-8 bg-white dark:bg-gray-gray800 border border-gray-gray200 dark:border-gray-gray600 rounded-md text-sm text-gray-gray700 dark:text-gray-gray200 focus:outline-none focus:ring-2 focus:ring-blue-blue/30 focus:border-blue-blue"
+                    >
+                        {EXPIRY_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                            </option>
+                        ))}
+                    </select>
+                    <CaretDownIcon
+                        size={14}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-gray400 pointer-events-none"
+                    />
                 </div>
             </div>
 
@@ -342,11 +290,7 @@ export default function UploadTab({apiKey, table}) {
                         onChange={(e) => setSelectedFieldId(e.target.value)}
                         className="w-full appearance-none px-3 py-2 pr-8 bg-white dark:bg-gray-gray800 border border-gray-gray200 dark:border-gray-gray600 rounded-md text-sm text-gray-gray700 dark:text-gray-gray200 focus:outline-none focus:ring-2 focus:ring-blue-blue/30 focus:border-blue-blue"
                     >
-                        <option value="">
-                            {writeMode === 'url'
-                                ? 'Select a URL / text field...'
-                                : 'Select an attachment field...'}
-                        </option>
+                        <option value="">Select a URL / text field...</option>
                         {targetFields.map((f) => (
                             <option key={f.id} value={f.id}>
                                 {f.name}
@@ -360,8 +304,7 @@ export default function UploadTab({apiKey, table}) {
                 </div>
                 {targetFields.length === 0 && (
                     <p className="text-xs text-yellow-yellowDark1 dark:text-yellow-yellow mt-1">
-                        No {writeMode === 'url' ? 'URL or text' : 'attachment'} fields found in this
-                        table.
+                        No URL or text fields found in this table.
                     </p>
                 )}
             </div>
