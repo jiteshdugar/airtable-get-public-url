@@ -32,6 +32,7 @@ export default function BulkUploadTab({apiKey, table: defaultTable}) {
     const [progress, setProgress] = useState({current: 0, total: 0, errors: []});
     const [completed, setCompleted] = useState(false);
 
+    const tables = base?.tables ?? [];
     const selectedTable = selectedTableId ? base.getTableByIdIfExists(selectedTableId) : null;
     const selectedView =
         selectedTable && selectedViewId
@@ -151,7 +152,7 @@ export default function BulkUploadTab({apiKey, table: defaultTable}) {
                         className="w-full appearance-none px-3 py-2 pr-8 bg-white dark:bg-gray-gray800 border border-gray-gray200 dark:border-gray-gray600 rounded-md text-sm text-gray-gray700 dark:text-gray-gray200 focus:outline-none focus:ring-2 focus:ring-blue-blue/30 focus:border-blue-blue"
                     >
                         <option value="">Choose a table...</option>
-                        {base.tables.map((t) => (
+                        {tables.map((t) => (
                             <option key={t.id} value={t.id}>
                                 {t.name}
                             </option>
