@@ -10,27 +10,41 @@ import {
 } from '@phosphor-icons/react';
 import {verifyApiKey} from '../api';
 
-export function SettingsPanel({apiKey, onClose}) {
+export function SettingsPanel({apiKey, globalConfig, onClose}) {
+    const [inputKey, setInputKey] = useState(apiKey || '');
     const [verifying, setVerifying] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
 
-    const handleVerify = async () => {
-        if (!apiKey) {
-            setError('No API key configured. Set it in the properties panel.');
+    const handleSave = async () => {
+        const trimmed = inputKey.trim();
+        if (!trimmed) {
+            setError('Please enter an API key.');
             return;
         }
         setVerifying(true);
         setError(null);
         setResult(null);
         try {
-            const data = await verifyApiKey(apiKey);
-            setResult(data);
+            const data = await verifyApiKey(trimmed);
+            if (data.valid) {
+                setResult(data);
+                await globalConfig.setAsync('apiKey', trimmed);
+            } else {
+                setError('Invalid API key.');
+            }
         } catch (err) {
             setError(err.message);
         } finally {
             setVerifying(false);
         }
+    };
+
+    const handleRemove = async () => {
+        await globalConfig.setAsync('apiKey', '');
+        setInputKey('');
+        setResult(null);
+        setError(null);
     };
 
     return (
@@ -63,12 +77,20 @@ export function SettingsPanel({apiKey, onClose}) {
                             </div>
                         </label>
                         <div className="flex items-center gap-2">
-                            <div className="flex-1 px-3 py-2 bg-gray-gray50 dark:bg-gray-gray800 border border-gray-gray200 dark:border-gray-gray600 rounded-md text-sm text-gray-gray500 dark:text-gray-gray400 font-mono truncate">
-                                {apiKey ? `${apiKey.slice(0, 8)}${'•'.repeat(20)}` : 'Not configured'}
-                            </div>
+                            <input
+                                type="password"
+                                value={inputKey}
+                                onChange={(e) => {
+                                    setInputKey(e.target.value);
+                                    setResult(null);
+                                    setError(null);
+                                }}
+                                placeholder="Enter your API key..."
+                                className="flex-1 px-3 py-2 bg-white dark:bg-gray-gray800 border border-gray-gray200 dark:border-gray-gray600 rounded-md text-sm text-gray-gray700 dark:text-gray-gray200 font-mono focus:outline-none focus:ring-2 focus:ring-blue-blue/30 focus:border-blue-blue"
+                            />
                             <button
-                                onClick={handleVerify}
-                                disabled={verifying || !apiKey}
+                                onClick={handleSave}
+                                disabled={verifying || !inputKey.trim()}
                                 className="px-3 py-2 bg-blue-blue hover:bg-blue-blueDark1 disabled:opacity-50 text-white text-sm font-medium rounded-md transition-colors flex items-center gap-1.5"
                             >
                                 {verifying ? (
@@ -76,14 +98,17 @@ export function SettingsPanel({apiKey, onClose}) {
                                 ) : (
                                     <CheckCircleIcon size={14} />
                                 )}
-                                Verify
+                                Save
                             </button>
                         </div>
-                        <p className="mt-1.5 text-xs text-gray-gray400 dark:text-gray-gray400">
-                            Configure your API key in the{' '}
-                            <span className="font-medium text-blue-blue">properties panel</span> of
-                            this extension.
-                        </p>
+                        {apiKey && (
+                            <button
+                                onClick={handleRemove}
+                                className="mt-1.5 text-xs text-red-red hover:text-red-redDark1 transition-colors"
+                            >
+                                Remove API key
+                            </button>
+                        )}
                     </div>
 
                     {/* Verification Result */}
@@ -96,7 +121,7 @@ export function SettingsPanel({apiKey, onClose}) {
                             />
                             <div>
                                 <p className="text-sm font-medium text-green-greenDark1 dark:text-green-greenLight1">
-                                    API key is valid
+                                    API key verified and saved
                                 </p>
                                 <div className="flex items-center gap-1 mt-1 text-xs text-green-greenDark1/80 dark:text-green-greenLight1/80">
                                     <CoinsIcon size={12} />
@@ -156,7 +181,33 @@ export function SettingsPanel({apiKey, onClose}) {
     );
 }
 
-export function ApiKeySetupPrompt() {
+export function ApiKeySetupPrompt({globalConfig}) {
+    const [inputKey, setInputKey] = useState('');
+    const [verifying, setVerifying] = useState(false);
+    const [error, setError] = useState(null);
+
+    const handleSave = async () => {
+        const trimmed = inputKey.trim();
+        if (!trimmed) {
+            setError('Please enter an API key.');
+            return;
+        }
+        setVerifying(true);
+        setError(null);
+        try {
+            const data = await verifyApiKey(trimmed);
+            if (data.valid) {
+                await globalConfig.setAsync('apiKey', trimmed);
+            } else {
+                setError('Invalid API key. Please check and try again.');
+            }
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setVerifying(false);
+        }
+    };
+
     return (
         <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center">
             <div className="w-16 h-16 rounded-full bg-blue-blueLight3 dark:bg-blue-blueDark1/20 flex items-center justify-center mb-4">
@@ -166,19 +217,62 @@ export function ApiKeySetupPrompt() {
                 API Key Required
             </h2>
             <p className="text-sm text-gray-gray500 dark:text-gray-gray400 max-w-sm mb-4">
-                To use Upload to URL, configure your API key in the{' '}
-                <span className="font-medium text-blue-blue">properties panel</span> of this
-                extension.
+                Enter your UploadToURL API key to get started.
             </p>
-            <a
-                href="https://uploadtourl.com/dashboard"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-blue hover:bg-blue-blueDark1 text-white text-sm font-medium rounded-md transition-colors"
-            >
-                <ArrowSquareOutIcon size={16} />
-                Get your API key
-            </a>
+
+            <div className="w-full max-w-sm space-y-3">
+                <input
+                    type="password"
+                    value={inputKey}
+                    onChange={(e) => {
+                        setInputKey(e.target.value);
+                        setError(null);
+                    }}
+                    placeholder="Enter your API key..."
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-gray800 border border-gray-gray200 dark:border-gray-gray600 rounded-md text-sm text-gray-gray700 dark:text-gray-gray200 font-mono focus:outline-none focus:ring-2 focus:ring-blue-blue/30 focus:border-blue-blue"
+                />
+
+                {error && (
+                    <div className="flex items-start gap-2 p-3 bg-red-redLight3 dark:bg-red-redDark1/20 border border-red-redLight1 dark:border-red-redDark1 rounded-md text-left">
+                        <XCircleIcon
+                            size={16}
+                            weight="fill"
+                            className="text-red-red mt-0.5 shrink-0"
+                        />
+                        <p className="text-sm text-red-redDark1 dark:text-red-redLight1">
+                            {error}
+                        </p>
+                    </div>
+                )}
+
+                <button
+                    onClick={handleSave}
+                    disabled={verifying || !inputKey.trim()}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-blue hover:bg-blue-blueDark1 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-md transition-colors"
+                >
+                    {verifying ? (
+                        <>
+                            <SpinnerIcon size={16} className="animate-spin" />
+                            Verifying...
+                        </>
+                    ) : (
+                        <>
+                            <CheckCircleIcon size={16} />
+                            Verify &amp; Save
+                        </>
+                    )}
+                </button>
+
+                <a
+                    href="https://uploadtourl.com/dashboard"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-sm text-blue-blue hover:text-blue-blueDark1 transition-colors"
+                >
+                    <ArrowSquareOutIcon size={16} />
+                    Get your API key
+                </a>
+            </div>
         </div>
     );
 }

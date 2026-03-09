@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {initializeBlock, useCustomProperties} from '@airtable/blocks/interface/ui';
+import {initializeBlock, useCustomProperties, useGlobalConfig} from '@airtable/blocks/interface/ui';
 import {
     CloudArrowUpIcon,
     StackIcon,
@@ -12,12 +12,6 @@ import {SettingsPanel, ApiKeySetupPrompt} from './components/Settings';
 
 function getCustomProperties(base) {
     return [
-        {
-            key: 'apiKey',
-            label: 'UploadToURL API Key',
-            type: 'string',
-            defaultValue: '',
-        },
         {
             key: 'table',
             label: 'Table',
@@ -34,10 +28,11 @@ const TABS = [
 
 function UploadToUrlApp() {
     const {customPropertyValueByKey, errorState} = useCustomProperties(getCustomProperties);
+    const globalConfig = useGlobalConfig();
     const [activeTab, setActiveTab] = useState('upload');
     const [showSettings, setShowSettings] = useState(false);
 
-    const apiKey = customPropertyValueByKey?.apiKey || '';
+    const apiKey = (globalConfig.get('apiKey') || '');
     const table = customPropertyValueByKey?.table;
 
     if (errorState) {
@@ -56,7 +51,7 @@ function UploadToUrlApp() {
     if (!apiKey) {
         return (
             <div className="min-h-screen bg-gray-gray50 dark:bg-gray-gray800">
-                <ApiKeySetupPrompt />
+                <ApiKeySetupPrompt globalConfig={globalConfig} />
             </div>
         );
     }
@@ -109,7 +104,7 @@ function UploadToUrlApp() {
 
             {/* Settings Modal */}
             {showSettings && (
-                <SettingsPanel apiKey={apiKey} onClose={() => setShowSettings(false)} />
+                <SettingsPanel apiKey={apiKey} globalConfig={globalConfig} onClose={() => setShowSettings(false)} />
             )}
         </div>
     );
