@@ -33,13 +33,13 @@ export default function BulkUploadTab({apiKey}) {
     const [completed, setCompleted] = useState(false);
 
     const tables = base?.tables ?? [];
-    const selectedTable = selectedTableId ? base.getTableByIdIfExists(selectedTableId) : null;
+    const selectedTable = selectedTableId ? base?.getTableByIdIfExists(selectedTableId) : null;
     const selectedView =
         selectedTable && selectedViewId
             ? selectedTable.views.find((v) => v.id === selectedViewId)
             : null;
 
-    const records = useRecords(selectedView || selectedTable);
+    const records = useRecords(selectedView || selectedTable || undefined);
 
     // Get attachment fields for source
     const attachmentFields = selectedTable
