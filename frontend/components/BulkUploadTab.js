@@ -14,47 +14,33 @@ import {
 } from '@phosphor-icons/react';
 import {uploadFromUrl} from '../api';
 
-const EXPIRY_OPTIONS = [
-    {value: 'never', label: 'No expiry'},
-    {value: '1', label: '1 day'},
-    {value: '7', label: '7 days'},
-    {value: '30', label: '30 days'},
-];
+function RecordCount({tableOrView, table, sourceFieldId}) {
+    const records = useRecords(tableOrView);
+    if (!records || !sourceFieldId) return null;
+    return (
+        <div className="px-3 py-2 bg-gray-gray50 dark:bg-gray-gray800 rounded-md text-xs text-gray-gray500 dark:text-gray-gray400">
+            {records.length} records loaded
+            {sourceFieldId && (
+                <>
+                    {' · '}
+                    {records.filter((r) => {
+                        const field = table.getFieldIfExists(sourceFieldId);
+                        if (!field) return false;
+                        const val = r.getCellValue(field);
+                        return val && Array.isArray(val) && val.length > 0;
+                    }).length}{' '}
+                    with attachments
+                </>
+            )}
+        </div>
+    );
+}
 
-export default function BulkUploadTab({apiKey}) {
-    const base = useBase();
-    const [selectedTableId, setSelectedTableId] = useState('');
-    const [selectedViewId, setSelectedViewId] = useState('');
-    const [sourceFieldId, setSourceFieldId] = useState('');
-    const [destFieldId, setDestFieldId] = useState('');
-    const [expiry, setExpiry] = useState('never');
+function BulkConvertSection({tableOrView, selectedTable, sourceFieldId, destFieldId, apiKey, expiry}) {
+    const records = useRecords(tableOrView);
     const [processing, setProcessing] = useState(false);
     const [progress, setProgress] = useState({current: 0, total: 0, errors: []});
     const [completed, setCompleted] = useState(false);
-
-    const tables = base?.tables ?? [];
-    const selectedTable = selectedTableId ? base?.getTableByIdIfExists(selectedTableId) : null;
-    const selectedView =
-        selectedTable && selectedViewId
-            ? selectedTable.views.find((v) => v.id === selectedViewId)
-            : null;
-
-    const records = useRecords(selectedView || selectedTable || undefined);
-
-    // Get attachment fields for source
-    const attachmentFields = selectedTable
-        ? selectedTable.fields.filter((f) => f.type === FieldType.MULTIPLE_ATTACHMENTS)
-        : [];
-
-    // Get URL/text fields for destination
-    const destFields = selectedTable
-        ? selectedTable.fields.filter(
-              (f) =>
-                  f.type === FieldType.URL ||
-                  f.type === FieldType.SINGLE_LINE_TEXT ||
-                  f.type === FieldType.MULTILINE_TEXT,
-          )
-        : [];
 
     const handleConvertAll = useCallback(async () => {
         if (!selectedTable || !sourceFieldId || !destFieldId || !apiKey || !records) return;
@@ -130,6 +116,139 @@ export default function BulkUploadTab({apiKey}) {
         progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
 
     return (
+        <>
+            {/* Convert Button */}
+            <button
+                onClick={handleConvertAll}
+                disabled={!sourceFieldId || !destFieldId || processing || !apiKey}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-purple hover:bg-purple-purpleDark1 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors text-sm"
+            >
+                {processing ? (
+                    <>
+                        <SpinnerIcon size={16} className="animate-spin" />
+                        Processing...
+                    </>
+                ) : (
+                    <>
+                        <LightningIcon size={16} weight="fill" />
+                        Convert All Attachments
+                    </>
+                )}
+            </button>
+
+            {/* Progress Bar */}
+            {(processing || completed) && progress.total > 0 && (
+                <div className="space-y-2">
+                    {/* Bar */}
+                    <div className="w-full bg-gray-gray100 dark:bg-gray-gray600 rounded-full h-2.5 overflow-hidden">
+                        <div
+                            className={`h-full rounded-full transition-all duration-300 ${
+                                completed && progress.errors.length === 0
+                                    ? 'bg-green-green'
+                                    : completed && progress.errors.length > 0
+                                      ? 'bg-yellow-yellow'
+                                      : 'bg-blue-blue'
+                            }`}
+                            style={{width: `${progressPercent}%`}}
+                        />
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-gray-gray500 dark:text-gray-gray400">
+                        <span>
+                            {progress.current} of {progress.total} records
+                        </span>
+                        <span>{progressPercent}%</span>
+                    </div>
+
+                    {/* Completion message */}
+                    {completed && (
+                        <div
+                            className={`flex items-center gap-2 p-3 rounded-md ${
+                                progress.errors.length === 0
+                                    ? 'bg-green-greenLight3 dark:bg-green-greenDark1/10 border border-green-greenLight1 dark:border-green-greenDark1'
+                                    : 'bg-yellow-yellowLight3 dark:bg-yellow-yellowDark1/10 border border-yellow-yellowLight1 dark:border-yellow-yellowDark1'
+                            }`}
+                        >
+                            {progress.errors.length === 0 ? (
+                                <CheckCircleIcon
+                                    size={16}
+                                    weight="fill"
+                                    className="text-green-green shrink-0"
+                                />
+                            ) : (
+                                <WarningIcon
+                                    size={16}
+                                    weight="fill"
+                                    className="text-yellow-yellowDark1 dark:text-yellow-yellow shrink-0"
+                                />
+                            )}
+                            <span className="text-sm font-medium text-gray-gray700 dark:text-gray-gray200">
+                                Completed!{' '}
+                                {progress.errors.length > 0 &&
+                                    `(${progress.errors.length} error${progress.errors.length > 1 ? 's' : ''})`}
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Errors */}
+                    {progress.errors.length > 0 && (
+                        <div className="max-h-32 overflow-y-auto space-y-1">
+                            {progress.errors.map((err, i) => (
+                                <div
+                                    key={i}
+                                    className="flex items-start gap-1.5 text-xs text-red-redDark1 dark:text-red-redLight1"
+                                >
+                                    <XCircleIcon size={12} className="shrink-0 mt-0.5" />
+                                    <span>{err}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+        </>
+    );
+}
+
+const EXPIRY_OPTIONS = [
+    {value: 'never', label: 'No expiry'},
+    {value: '1', label: '1 day'},
+    {value: '7', label: '7 days'},
+    {value: '30', label: '30 days'},
+];
+
+export default function BulkUploadTab({apiKey}) {
+    const base = useBase();
+    const [selectedTableId, setSelectedTableId] = useState('');
+    const [selectedViewId, setSelectedViewId] = useState('');
+    const [sourceFieldId, setSourceFieldId] = useState('');
+    const [destFieldId, setDestFieldId] = useState('');
+    const [expiry, setExpiry] = useState('never');
+
+    const tables = base?.tables ?? [];
+    const selectedTable = selectedTableId ? base?.getTableByIdIfExists(selectedTableId) : null;
+    const selectedView =
+        selectedTable && selectedViewId
+            ? selectedTable.views.find((v) => v.id === selectedViewId)
+            : null;
+
+    // Get attachment fields for source
+    const attachmentFields = selectedTable
+        ? selectedTable.fields.filter((f) => f.type === FieldType.MULTIPLE_ATTACHMENTS)
+        : [];
+
+    // Get URL/text fields for destination
+    const destFields = selectedTable
+        ? selectedTable.fields.filter(
+              (f) =>
+                  f.type === FieldType.URL ||
+                  f.type === FieldType.SINGLE_LINE_TEXT ||
+                  f.type === FieldType.MULTILINE_TEXT,
+          )
+        : [];
+
+    const tableOrView = selectedView || selectedTable;
+
+    return (
         <div className="space-y-4">
             {/* Table Selector */}
             <div>
@@ -147,7 +266,6 @@ export default function BulkUploadTab({apiKey}) {
                             setSelectedViewId('');
                             setSourceFieldId('');
                             setDestFieldId('');
-                            setCompleted(false);
                         }}
                         className="w-full appearance-none px-3 py-2 pr-8 bg-white dark:bg-gray-gray800 border border-gray-gray200 dark:border-gray-gray600 rounded-md text-sm text-gray-gray700 dark:text-gray-gray200 focus:outline-none focus:ring-2 focus:ring-blue-blue/30 focus:border-blue-blue"
                     >
@@ -283,111 +401,28 @@ export default function BulkUploadTab({apiKey}) {
             </div>
 
             {/* Records count info */}
-            {records && selectedTable && sourceFieldId && (
-                <div className="px-3 py-2 bg-gray-gray50 dark:bg-gray-gray800 rounded-md text-xs text-gray-gray500 dark:text-gray-gray400">
-                    {records.length} records loaded
-                    {sourceFieldId && (
-                        <>
-                            {' · '}
-                            {records.filter((r) => {
-                                const field = selectedTable.getFieldIfExists(sourceFieldId);
-                                if (!field) return false;
-                                const val = r.getCellValue(field);
-                                return val && Array.isArray(val) && val.length > 0;
-                            }).length}{' '}
-                            with attachments
-                        </>
-                    )}
-                </div>
+            {tableOrView && sourceFieldId && (
+                <RecordCount tableOrView={tableOrView} table={selectedTable} sourceFieldId={sourceFieldId} />
             )}
 
-            {/* Convert Button */}
-            <button
-                onClick={handleConvertAll}
-                disabled={!sourceFieldId || !destFieldId || processing || !apiKey}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-purple hover:bg-purple-purpleDark1 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors text-sm"
-            >
-                {processing ? (
-                    <>
-                        <SpinnerIcon size={16} className="animate-spin" />
-                        Processing...
-                    </>
-                ) : (
-                    <>
-                        <LightningIcon size={16} weight="fill" />
-                        Convert All Attachments
-                    </>
-                )}
-            </button>
-
-            {/* Progress Bar */}
-            {(processing || completed) && progress.total > 0 && (
-                <div className="space-y-2">
-                    {/* Bar */}
-                    <div className="w-full bg-gray-gray100 dark:bg-gray-gray600 rounded-full h-2.5 overflow-hidden">
-                        <div
-                            className={`h-full rounded-full transition-all duration-300 ${
-                                completed && progress.errors.length === 0
-                                    ? 'bg-green-green'
-                                    : completed && progress.errors.length > 0
-                                      ? 'bg-yellow-yellow'
-                                      : 'bg-blue-blue'
-                            }`}
-                            style={{width: `${progressPercent}%`}}
-                        />
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-gray-gray500 dark:text-gray-gray400">
-                        <span>
-                            {progress.current} of {progress.total} records
-                        </span>
-                        <span>{progressPercent}%</span>
-                    </div>
-
-                    {/* Completion message */}
-                    {completed && (
-                        <div
-                            className={`flex items-center gap-2 p-3 rounded-md ${
-                                progress.errors.length === 0
-                                    ? 'bg-green-greenLight3 dark:bg-green-greenDark1/10 border border-green-greenLight1 dark:border-green-greenDark1'
-                                    : 'bg-yellow-yellowLight3 dark:bg-yellow-yellowDark1/10 border border-yellow-yellowLight1 dark:border-yellow-yellowDark1'
-                            }`}
-                        >
-                            {progress.errors.length === 0 ? (
-                                <CheckCircleIcon
-                                    size={16}
-                                    weight="fill"
-                                    className="text-green-green shrink-0"
-                                />
-                            ) : (
-                                <WarningIcon
-                                    size={16}
-                                    weight="fill"
-                                    className="text-yellow-yellowDark1 dark:text-yellow-yellow shrink-0"
-                                />
-                            )}
-                            <span className="text-sm font-medium text-gray-gray700 dark:text-gray-gray200">
-                                Completed!{' '}
-                                {progress.errors.length > 0 &&
-                                    `(${progress.errors.length} error${progress.errors.length > 1 ? 's' : ''})`}
-                            </span>
-                        </div>
-                    )}
-
-                    {/* Errors */}
-                    {progress.errors.length > 0 && (
-                        <div className="max-h-32 overflow-y-auto space-y-1">
-                            {progress.errors.map((err, i) => (
-                                <div
-                                    key={i}
-                                    className="flex items-start gap-1.5 text-xs text-red-redDark1 dark:text-red-redLight1"
-                                >
-                                    <XCircleIcon size={12} className="shrink-0 mt-0.5" />
-                                    <span>{err}</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+            {/* Convert section (button + progress) */}
+            {tableOrView ? (
+                <BulkConvertSection
+                    tableOrView={tableOrView}
+                    selectedTable={selectedTable}
+                    sourceFieldId={sourceFieldId}
+                    destFieldId={destFieldId}
+                    apiKey={apiKey}
+                    expiry={expiry}
+                />
+            ) : (
+                <button
+                    disabled
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-purple hover:bg-purple-purpleDark1 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors text-sm"
+                >
+                    <LightningIcon size={16} weight="fill" />
+                    Convert All Attachments
+                </button>
             )}
         </div>
     );
