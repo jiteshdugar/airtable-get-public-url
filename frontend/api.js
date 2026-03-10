@@ -35,12 +35,22 @@ export async function uploadFile(apiKey, file, expiryDays) {
 }
 
 export async function uploadFromUrl(apiKey, sourceUrl, fileName, expiryDays) {
-    // Download the file from the Airtable attachment URL, then re-upload
-    const res = await fetch(sourceUrl);
+    const formData = new FormData();
+    formData.append('url', sourceUrl);
+    formData.append('file_name', fileName || 'attachment');
+    formData.append('expiry_days', expiryDays);
+    formData.append('source', 'airtable');
+
+    const res = await fetch(`${API_BASE}/upload`, {
+        method: 'POST',
+        headers: {
+            'x-api-key': apiKey,
+        },
+        body: formData,
+    });
     if (!res.ok) {
-        throw new Error(`Failed to download attachment: ${res.status}`);
+        const text = await res.text();
+        throw new Error(`Upload failed (${res.status}): ${text}`);
     }
-    const blob = await res.blob();
-    const file = new File([blob], fileName || 'attachment', {type: blob.type});
-    return uploadFile(apiKey, file, expiryDays);
+    return res.json();
 }
