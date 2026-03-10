@@ -228,17 +228,17 @@ export default function BulkUploadTab({apiKey}) {
     const selectedTable = selectedTableId ? base?.getTableByIdIfExists(selectedTableId) : null;
     const selectedView =
         selectedTable && selectedViewId
-            ? selectedTable.views.find((v) => v.id === selectedViewId)
+            ? (selectedTable.views ?? []).find((v) => v.id === selectedViewId)
             : null;
 
     // Get attachment fields for source
     const attachmentFields = selectedTable
-        ? selectedTable.fields.filter((f) => f.type === FieldType.MULTIPLE_ATTACHMENTS)
+        ? (selectedTable.fields ?? []).filter((f) => f.type === FieldType.MULTIPLE_ATTACHMENTS)
         : [];
 
     // Get URL/text fields for destination
     const destFields = selectedTable
-        ? selectedTable.fields.filter(
+        ? (selectedTable.fields ?? []).filter(
               (f) =>
                   f.type === FieldType.URL ||
                   f.type === FieldType.SINGLE_LINE_TEXT ||
@@ -299,7 +299,7 @@ export default function BulkUploadTab({apiKey}) {
                             className="w-full appearance-none px-3 py-2 pr-8 bg-white dark:bg-gray-gray800 border border-gray-gray200 dark:border-gray-gray600 rounded-md text-sm text-gray-gray700 dark:text-gray-gray200 focus:outline-none focus:ring-2 focus:ring-blue-blue/30 focus:border-blue-blue"
                         >
                             <option value="">All records</option>
-                            {selectedTable.views.map((v) => (
+                            {(selectedTable.views ?? []).map((v) => (
                                 <option key={v.id} value={v.id}>
                                     {v.name}
                                 </option>
