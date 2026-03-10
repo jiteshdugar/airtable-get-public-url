@@ -15,6 +15,16 @@ import {
 } from '@phosphor-icons/react';
 import {uploadFile} from '../api';
 
+function RecordOptions({table}) {
+    const records = useRecords(table);
+    if (!records) return null;
+    return records.map((r) => (
+        <option key={r.id} value={r.id}>
+            {r.name || r.id}
+        </option>
+    ));
+}
+
 const EXPIRY_OPTIONS = [
     {value: 'never', label: 'No expiry'},
     {value: '1', label: '1 day'},
@@ -39,7 +49,6 @@ export default function UploadTab({apiKey}) {
 
     const tables = base?.tables ?? [];
     const table = selectedTableId ? base?.getTableByIdIfExists(selectedTableId) : null;
-    const records = useRecords(table ?? undefined);
 
     // Get URL/text fields for destination
     const targetFields = table
@@ -205,12 +214,7 @@ export default function UploadTab({apiKey}) {
                         className="w-full appearance-none px-3 py-2 pr-8 bg-white dark:bg-gray-gray800 border border-gray-gray200 dark:border-gray-gray600 rounded-md text-sm text-gray-gray700 dark:text-gray-gray200 focus:outline-none focus:ring-2 focus:ring-blue-blue/30 focus:border-blue-blue"
                     >
                         <option value="">Choose a record...</option>
-                        {records &&
-                            records.map((r) => (
-                                <option key={r.id} value={r.id}>
-                                    {r.name || r.id}
-                                </option>
-                            ))}
+                        {table && <RecordOptions table={table} />}
                     </select>
                     <CaretDownIcon
                         size={14}
